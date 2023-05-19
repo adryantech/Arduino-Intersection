@@ -1,0 +1,310 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+const int redPin = 3;
+const int greenPin = 2;
+const int yellowPin = 4;
+const int button1Pin = 5;
+const int button2Pin = 6;
+const int button3Pin = 7;
+
+unsigned long startTime = 0;
+unsigned long elapsedTime = 0;
+bool isButton1Pressed = false;
+bool isButton2Pressed = false;
+bool isButton3Pressed = false;
+bool isFirstSequenceActive = false;
+bool isSecondSequenceActive = false;
+
+char Bluetooth_Com;
+
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+void setup() {
+  lcd.begin(16, 2);
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(yellowPin, OUTPUT);
+  pinMode(button1Pin, INPUT_PULLUP);
+  pinMode(button2Pin, INPUT_PULLUP);
+  pinMode(button3Pin, INPUT_PULLUP);
+  Serial.begin(9600);
+  lcd.print("Traffic Light");
+}
+
+void loop() {
+  // Check for incoming Bluetooth commands
+  if(Serial.available() > 0){ // Checks whether data is comming from the serial port
+  Bluetooth_Com = Serial.read(); // Reads the data from the serial port
+    
+    if (Bluetooth_Com == '1') {
+      Serial.println("Green light sequence activated");
+      digitalWrite(redPin, LOW);
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(greenPin, HIGH);
+      lcd.clear();
+      lcd.print("Green mode on");
+    }
+    else if (Bluetooth_Com == '2') {
+      Serial.println("Red light sequence activated");
+      digitalWrite(greenPin, LOW);
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(redPin, HIGH);
+      lcd.clear();
+      lcd.print("Red mode on");
+    }
+    else if (Bluetooth_Com == '3') {
+      lcd.clear();
+      lcd.print("Blinking yellow");
+      Serial.println("Blinking yellow light sequence activated");
+      digitalWrite(redPin, LOW);
+      digitalWrite(greenPin, LOW);
+      while (Bluetooth_Com == '3') {
+        digitalWrite(yellowPin, HIGH);
+        delay(500);
+        digitalWrite(yellowPin, LOW);
+        delay(500);
+        if(Serial.available() > 0){
+          Bluetooth_Com = Serial.read();
+        }
+      }
+      digitalWrite(yellowPin, LOW);
+    }
+    else if (Bluetooth_Com == '4') {
+      Serial.println("Automated Sequence on");
+      isButton1Pressed = true;
+      isButton2Pressed = false;
+      isButton3Pressed = false;
+      isFirstSequenceActive = !isFirstSequenceActive;
+      isSecondSequenceActive = false;
+      startTime = millis();
+      lcd.clear();
+    }
+    else if (Bluetooth_Com == '5') {
+      Serial.println("Automated Sequence 2 on");
+      isButton1Pressed = false;
+      isButton2Pressed = false;
+      isButton3Pressed = true;
+      isFirstSequenceActive = false;
+      isSecondSequenceActive =!isSecondSequenceActive;
+      startTime = millis();
+      lcd.clear();
+    }
+  }
+  // Check if button 1 is pressed
+  if (digitalRead(button1Pin) == LOW && !isButton1Pressed) {
+    Serial.println("Button 1 pressed Traffic light Automated Sequence is on: 10 second green - 3 seconds yellow - 10 seconds red - 3 second yellow");
+    isButton1Pressed = true;
+    isButton2Pressed = false;
+    isButton3Pressed = false;
+    isFirstSequenceActive = !isFirstSequenceActive;
+    isSecondSequenceActive = false;
+    startTime = millis();
+    lcd.clear();
+  }
+
+  // Check if button 2 is pressed
+  if (digitalRead(button2Pin) == LOW && !isButton2Pressed) {
+    Serial.println("Button 2 pressed Blinking yellow is activated");
+    isButton2Pressed = true;
+    isButton1Pressed = false;
+    isButton3Pressed = false;
+    isFirstSequenceActive = false;
+    isSecondSequenceActive = false;
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(yellowPin, HIGH);
+    lcd.clear();
+  }
+  // Check if button 3 is pressed
+  if (digitalRead(button3Pin) == LOW && !isButton3Pressed) {
+    Serial.println("Button 3 pressed Traffic light Automated Sequence is on: 30 second green - 3 seconds yellow - 10 seconds red - 3 second yellow");
+    isButton1Pressed = false;
+    isButton2Pressed = false;
+    isButton3Pressed = true;
+    isFirstSequenceActive = false;
+    isSecondSequenceActive =!isSecondSequenceActive;
+    startTime = millis();
+    lcd.clear();
+  }
+
+  // Check if button 1 sequence is in progress
+  if (isFirstSequenceActive) {
+    elapsedTime = millis() - startTime;
+
+    // Green light for 10 seconds
+    if (elapsedTime < 10000) {
+      digitalWrite(redPin, LOW);
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(greenPin, HIGH);
+
+	    int remainingTime = (10000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Green:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+    }
+    // Yellow light for 3 seconds
+    else if (elapsedTime < 13000) {
+      digitalWrite(greenPin, LOW);
+      digitalWrite(yellowPin, HIGH);
+      
+	    int remainingTime = (13000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Yellow:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Red light for 10 seconds
+    else if (elapsedTime < 23000) {
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(redPin, HIGH);
+      
+	    int remainingTime = (23000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Red:      ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Yellow light for 3 seconds
+    else if (elapsedTime < 26000) {
+      digitalWrite(redPin, LOW);
+      digitalWrite(yellowPin, HIGH);
+      
+	    int remainingTime = (26000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Yellow:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Loop back to green light
+    else {
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(greenPin, HIGH);
+      startTime = millis();
+    }
+  }
+
+  // Check if button 2 sequence is in progress
+  if (isButton2Pressed) {
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(yellowPin, !digitalRead(yellowPin));
+    delay(500);
+    lcd.clear();
+    lcd.print("Blinking yellow");
+  }
+
+  // Check if button 3 sequence is in progress
+  if (isSecondSequenceActive) {
+    elapsedTime = millis() - startTime;
+
+    // Green light for 30 seconds
+    if (elapsedTime < 30000) {
+      digitalWrite(redPin, LOW);
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(greenPin, HIGH);
+
+	    int remainingTime = (30000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Green:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+    }
+    // Yellow light for 3 seconds
+    else if (elapsedTime < 33000) {
+      digitalWrite(greenPin, LOW);
+      digitalWrite(yellowPin, HIGH);
+      
+	    int remainingTime = (33000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Yellow:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Red light for 10 seconds
+    else if (elapsedTime < 43000) {
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(redPin, HIGH);
+      
+	    int remainingTime = (43000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Red:      ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Yellow light for 3 seconds
+    else if (elapsedTime < 53000) {
+      digitalWrite(redPin, LOW);
+      digitalWrite(yellowPin, HIGH);
+      
+	    int remainingTime = (53000 - elapsedTime) / 1000;
+      char timeStr[3];
+      sprintf(timeStr, "%02d", remainingTime);
+      lcd.setCursor(0, 0);
+      lcd.print("Yellow:   ");
+      lcd.setCursor(0, 1);
+      lcd.print(timeStr);
+
+
+    }
+    // Loop back to green light
+    else {
+      digitalWrite(yellowPin, LOW);
+      digitalWrite(greenPin, HIGH);
+      startTime = millis();
+    }
+  }
+
+  // Check if button 1 sequence should be stopped
+  if (isFirstSequenceActive && digitalRead(button1Pin) == LOW && elapsedTime > 1000) {
+    isFirstSequenceActive = false;
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(yellowPin, LOW);
+    lcd.clear();
+    lcd.print("Sequence off");
+    delay(3000);
+    lcd.clear();
+    lcd.print("Traffic Light");
+  }
+  
+  // Check if button 3 sequence should be stopped
+  if (isSecondSequenceActive && digitalRead(button3Pin) == LOW && elapsedTime > 1000) {
+    isSecondSequenceActive = false;
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(yellowPin, LOW);
+    lcd.clear();
+    lcd.print("Sequence off");
+    delay(3000);
+    lcd.clear();
+    lcd.print("Traffic Light");
+  }
+}
